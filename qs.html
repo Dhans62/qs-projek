@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 QS & RPM Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background-color: #0d1a26;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      text-align: center;
+      padding: 15px;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 450px;
+      width: 95%;
+      background-color: #1a2b3b;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0, 255, 0, 0.2), 0 0 10px rgba(0, 255, 0, 0.1);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    h1, h2, h3 {
+      color: #00ff00;
+      margin-top: 5px;
+      margin-bottom: 5px;
+    }
+    .status-indicator {
+      font-weight: bold;
+      color: #ff4500; /* Default: OFF */
+    }
+    .status-indicator.active {
+      color: #00ff00; /* ON */
+    }
+    button {
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      background: #008cba;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    button:hover {
+      background-color: #007bb5;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    .Qs-btn {
+      background: #4CAF50;
+      color: white;
+      flex: 1;
+      margin: 0 5px;
+    }
+    .Qs-btn:hover {
+      background-color: #45a049;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+    input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 8px;
+      background: #333;
+      border-radius: 5px;
+      outline: none;
+      margin: 10px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #00ff00;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+    }
+    .save-btn {
+      background: #f44336;
+      margin-top: 15px;
+    }
+    .save-btn:hover {
+      background-color: #da190b;
+    }
+    .popup {
+      display: none;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .popup-content {
+      background-color: #1a2b3b;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 5px 20px rgba(0, 255, 0, 0.3);
+      width: 90%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      border: 1px solid rgba(0, 255, 0, 0.4);
+    }
+    .popup-content h2 {
+      color: #00ff00;
+      margin-top: 0;
+      margin-bottom: 15px;
+    }
+    .popup-button-group {
+        display: flex;
+        justify-content: space-around;
+        width: 100%;
+        margin-top: 10px;
+    }
+    .popup-button-group button {
+        flex: 1;
+        margin: 0 5px;
+    }
+    label {
+      display: block;
+      text-align: left;
+      margin-bottom: 5px;
+      color: #00ff00;
+      font-weight: bold;
+    }
+    input[type="number"] {
+      width: calc(100% - 20px);
+      padding: 10px;
+      margin-bottom: 10px;
+      background-color: #0d1a26;
+      border: 1px solid #00ff00;
+      border-radius: 6px;
+      color: #e0e0e0;
+      box-sizing: border-box;
+    }
+    .switch-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 15px 0;
+        gap: 10px;
+    }
+    .switch-container span {
+        color: #e0e0e0;
+        font-weight: normal;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #00ff00;
+    }
+    input:focus + .slider {
+      box-shadow: 0 0 1px #00ff00;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+  
+   .info-text {
+  color: #888;
+  font-size: 0.9em;
+  margin: 5px 0;
+  text-align: center;
+  }
+  
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="clock">00:00:00</h1>
+    <h2 id="qsStatus" class="status-indicator">QUICKSHIFTER OFF</h2>
+    <h3>RPM: <span id="rpmLabel">0</span></h3>
+    <div style="display: flex; justify-content: space-around; width: 100%;">
+      <button class="Qs-btn" onclick="setQS(true)">QS ON</button>
+      <button class="Qs-btn" onclick="setQS(false)">QS OFF</button>
+    </div>
+
+    <h2>Delay Cut</h2>
+    <input type="range" id="cutTime" min="2" max="150" value="75" oninput="updateCut(this.value)">
+    <div><span id="cutVal">75</span> ms</div>
+
+    <div class="grid">
+      <button class="btn" type="button" onclick="showPLLPopup()">PLL</button>
+      <button class="btn" type="button" onclick="showKudaPopup()">T.KUDA</button>
+      <button class="btn" type="button" onclick="location.href='/settings'">Settings</button>
+      <button id="backfireBtn" class="btn" onclick="showBackfirePopup()">BACKFIRE</button>
+    </div>
+    <button class="save-btn" type="button" onclick="sendCommand('SAVE_CONFIG')">SAVE ALL</button>
+    <button class="save-btn" onclick="sendCommand('RESET_ALL')">RESET ALL</button>
+  </div>
+
+  <div id="popupPLL" class="popup">
+  <div class="popup-content">
+    <h2>PIT LIMITER</h2>
+    <label>RPM Aktif:</label>
+    <input type="range" min="1000" max="15000" value="5000" id="rpmPLL" oninput="setRPM_PLL(this.value)">
+    <div><span id="rpmPLLVal">5000</span> RPM</div>
+    
+    <div class="info-text">Cut Duration: 5ms (Adaptive 3-8ms)</div>
+    <div class="info-text">Interval: Auto-Adaptive (8-80ms)</div>
+    
+    <div class="popup-button-group">
+      <button class="Qs-btn" onclick="sendCommand('PLL_MAIN_ON')">ON</button>
+      <button class="Qs-btn" onclick="sendCommand('PLL_MAIN_OFF')">OFF</button>
+   </div>
+    <button class="save-btn" onclick="closePLLPopup()">Back</button>
+   </div>
+   </div>
+
+  <div id="popupKuda" class="popup">
+    <div class="popup-content">
+      <h2>TIMING KUDA</h2>
+      <label>RPM Aktif:</label>
+      <input type="range" min="1000" max="15000" value="5000" id="rpmKuda" oninput="setRPMKuda(this.value)">
+      <div><span id="rpmKudaVal">5000</span> RPM</div>
+      <div class="popup-button-group">
+        <button class="Qs-btn" onclick="sendCommand('KUDA_MAIN_ON')">ON</button>
+        <button class="Qs-btn" onclick="sendCommand('KUDA_MAIN_OFF')">OFF</button>
+      </div>
+        <label>Speed (Interval antar Cut):</label>
+        <input type="range" min="1" max="10" value="5" id="kudaSpeed" oninput="setKudaSpeed(this.value)">
+        <div>Speed: <span id="kudaSpeedVal">5</span></div>
+        <div class="info-text">Cut Duration: 20ms (Fixed)</div>
+      <button class="save-btn" onclick="closeKudaPopup()">Back</button>
+    </div>
+  </div>
+  
+  <div id="popupBackfire" class="popup">
+   <div class="popup-content">
+    <h2>BACKFIRE CONTROL</h2>
+    <label>Speed (Interval antar Cut):</label>
+    <input type="range" min="1" max="10" value="5" id="backfireSpeed" oninput="setBackfireSpeed(this.value)">
+    <div>Speed: <span id="backfireSpeedVal">5</span></div>
+    <div class="info-text">Cut Duration: 30ms (Fixed)</div>
+    <div class="info-text">Control: Physical Switch</div>
+    <button class="save-btn" onclick="closeBackfirePopup()">Back</button>
+  </div>
+ </div>
+  
+<script>
+  let currentConfig = {};
+  function updateClock() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function sendCommand(cmd) {
+    fetch(`/cmd?do=${cmd}`)
+      .then(response => response.text())
+      .then(data => {
+        console.log(data);
+        if (cmd === 'SAVE_CONFIG' || cmd === 'RESET_ALL') {
+            alert('Settings ' + (cmd === 'SAVE_CONFIG' ? 'Saved!' : 'Reset to Defaults!'));
+            // Optionally reload config after save/reset
+            fetchConfig();
+        }
+      })
+      .catch(error => console.error('Error:', error));
+  }
+
+  function updateCut(val) {
+    document.getElementById('cutVal').textContent = val;
+    sendCommand(`CUT_${val}`);
+  }
+
+  function setQS(active) {
+    sendCommand(active ? 'QS_ON' : 'QS_OFF');
+    document.getElementById('qsStatus').textContent = active ? 'QUICKSHIFTER ON' : 'QUICKSHIFTER OFF';
+    document.getElementById('qsStatus').classList.toggle('active', active);
+  }
+
+function setRPM_PLL(val) {
+  document.getElementById('rpmPLLVal').textContent = val;
+}
+  
+function showPLLPopup() {
+  document.getElementById('popupPLL').style.display = 'flex';
+  document.getElementById('rpmPLL').value = getConfigValue('pllRPM', 5000);
+  document.getElementById('rpmPLLVal').textContent = getConfigValue('pllRPM', 5000);
+}
+
+function closePLLPopup() {
+  document.getElementById('popupPLL').style.display = 'none';
+  sendCommand(`PLL_RPM_${document.getElementById('rpmPLL').value}`);
+}
+
+// function showKudaPopup():
+function showKudaPopup() {
+  document.getElementById('popupKuda').style.display = 'flex';
+  document.getElementById('rpmKuda').value = getConfigValue('kudaRPM', 5000);
+  document.getElementById('rpmKudaVal').textContent = getConfigValue('kudaRPM', 5000);
+  document.getElementById('kudaSpeed').value = getConfigValue('kudaSpeed', 5);
+  document.getElementById('kudaSpeedVal').textContent = getConfigValue('kudaSpeed', 5);
+}
+
+// function closeKudaPopup():
+function closeKudaPopup() {
+  document.getElementById('popupKuda').style.display = 'none';
+  sendCommand(`KUDA_RPM_${document.getElementById('rpmKuda').value}`);
+  sendCommand(`KUDA_SPEED_${document.getElementById('kudaSpeed').value}`);
+}
+
+// function setRPMKuda():
+function setRPMKuda(val) {
+  document.getElementById('rpmKudaVal').textContent = val;
+}
+
+// function setKudaSpeed():
+function setKudaSpeed(val) {
+  document.getElementById('kudaSpeedVal').textContent = val;
+}
+
+  function showBackfirePopup() {
+  document.getElementById('popupBackfire').style.display = 'flex';
+  document.getElementById('backfireSpeed').value = getConfigValue('backfireSpeed', 5);
+  document.getElementById('backfireSpeedVal').textContent = getConfigValue('backfireSpeed', 5);
+}
+
+function closeBackfirePopup() {
+  document.getElementById('popupBackfire').style.display = 'none';
+  sendCommand(`BACKFIRE_SPEED_${document.getElementById('backfireSpeed').value}`);
+}
+
+function setBackfireSpeed(val) {
+  document.getElementById('backfireSpeedVal').textContent = val;
+}
+
+// fetchConfig():
+async function fetchConfig() {
+  try {
+    const response = await fetch('/config');
+    currentConfig = await response.json();
+    console.log('Fetched Config:', currentConfig);
+
+    // Update Main Page UI
+    document.getElementById('qsStatus').textContent = currentConfig.qs ? 'QUICKSHIFTER ON' : 'QUICKSHIFTER OFF';
+    document.getElementById('qsStatus').classList.toggle('active', currentConfig.qs);
+    document.getElementById('cutTime').value = currentConfig.cutTime;
+    document.getElementById('cutVal').textContent = currentConfig.cutTime;
+    document.getElementById('rpmLabel').textContent = currentConfig.rpm;
+
+    // Update PLL Popup UI
+    document.getElementById('rpmPLL').value = currentConfig.pllRPM;
+document.getElementById('rpmPLLVal').textContent = currentConfig.pllRPM;
+
+    // Update Kuda Popup UI
+    document.getElementById('rpmKuda').value = currentConfig.kudaRPM;
+    document.getElementById('rpmKudaVal').textContent = currentConfig.kudaRPM;
+    document.getElementById('kudaSpeed').value = currentConfig.kudaSpeed || 5;
+    document.getElementById('kudaSpeedVal').textContent = currentConfig.kudaSpeed || 5;
+
+    // Update Backfire Popup UI
+    document.getElementById('backfireSpeed').value = currentConfig.backfireSpeed || 5;
+    document.getElementById('backfireSpeedVal').textContent = currentConfig.backfireSpeed || 5;
+    
+  } catch (error) {
+    console.error('Error fetching config:', error);
+  }
+}
+
+  // Helper to safely get config values
+  function getConfigValue(path, defaultValue) {
+    const parts = path.split('.');
+    let value = currentConfig;
+    for (const part of parts) {
+        if (value && typeof value === 'object' && part.includes('[') && part.includes(']')) {
+            const arrayName = part.substring(0, part.indexOf('['));
+            const index = parseInt(part.substring(part.indexOf('[') + 1, part.indexOf(']')));
+            if (value[arrayName] && Array.isArray(value[arrayName]) && value[arrayName].length > index) {
+                value = value[arrayName][index];
+            } else {
+                return defaultValue;
+            }
+        } else if (value && typeof value === 'object' && value.hasOwnProperty(part)) {
+            value = value[part];
+        } else {
+            return defaultValue;
+        }
+    }
+    return value !== undefined ? value : defaultValue;
+  }
+
+  // Fetch RPM every second
+  setInterval(async () => {
+    try {
+      const response = await fetch('/rpm');
+      const rpm = await response.text();
+      document.getElementById('rpmLabel').textContent = rpm;
+    } catch (error) {
+      console.error('Error fetching RPM:', error);
+    }
+  }, 1000);
+
+  // Initial fetch on page load
+  document.addEventListener('DOMContentLoaded', fetchConfig);
+
+</script>
+</body>
+      </html>
